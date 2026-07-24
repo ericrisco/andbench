@@ -12,6 +12,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from andbench import __version__
+from andbench.canary import CANARY_GUID, CanaryRecord, dataset_has_canary
 from andbench.config import load_config, quota_report, unknown_areas
 from andbench.decontam import MIN_NGRAM, decontaminate
 from andbench.partition import (
@@ -28,6 +29,17 @@ from andbench.partition_lock import (
     write_lock,
 )
 from andbench.validation import validate_jsonl
+
+
+def _cmd_canary(args: argparse.Namespace) -> int:
+    if args.check:
+        if dataset_has_canary(args.check, CANARY_GUID):
+            print(f"Canary present: {CANARY_GUID}")
+            return 0
+        print(f"Canary MISSING ({CANARY_GUID}) from {args.check}")
+        return 1
+    print(CanaryRecord().to_jsonl())
+    return 0
 
 
 def _cmd_decontaminate(args: argparse.Namespace) -> int:
@@ -181,6 +193,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"n-gram length (>= {MIN_NGRAM}, default {MIN_NGRAM}).",
     )
     decon.set_defaults(_handler=_cmd_decontaminate)
+
+    canary = subparsers.add_parser(
+        "canary", help="Print the canary record, or --check a dataset carries it."
+    )
+    canary.add_argument(
+        "--check",
+        help="Path to a dataset export to verify the canary is present.",
+    )
+    canary.set_defaults(_handler=_cmd_canary)
 
     return parser
 
