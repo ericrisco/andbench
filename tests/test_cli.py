@@ -83,3 +83,15 @@ def test_validate_quotas_flag_reports_shortfalls(
     # A single item is far under every budget, so --quotas must fail.
     assert main(["validate", str(path), "--config", _CONFIG_PATH, "--quotas"]) == 1
     assert "Quota shortfalls" in capsys.readouterr().out
+
+
+def test_partition_command(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    manifest = tmp_path / "manifest.jsonl"
+    rows = [{"doc_id": f"d{i:03d}", "source": "bopa", "topic": "dret"} for i in range(30)]
+    manifest.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    out = tmp_path / "pools"
+    assert main(["partition", str(manifest), "--out", str(out), "--seed", "5"]) == 0
+    assert "Partitioned 30 docs" in capsys.readouterr().out
+    assert (out / "pool_train.txt").exists()
+    assert (out / "pool_bench.txt").exists()
+    assert (out / "partition.json").exists()
