@@ -95,3 +95,35 @@ def test_partition_command(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -
     assert (out / "pool_train.txt").exists()
     assert (out / "pool_bench.txt").exists()
     assert (out / "partition.json").exists()
+
+
+def _write_manifest(path: Path, n: int) -> Path:
+    rows = [{"doc_id": f"d{i:03d}", "source": "bopa", "topic": "dret"} for i in range(n)]
+    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    return path
+
+
+def test_partition_freeze_then_verify_ok(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    manifest = _write_manifest(tmp_path / "manifest.jsonl", 40)
+    lock = tmp_path / "partition.lock.json"
+    assert main(["partition-freeze", str(manifest), "--lock", str(lock)]) == 0
+    assert "Froze partition" in capsys.readouterr().out
+    assert lock.exists()
+
+    assert main(["partition-verify", str(manifest), "--lock", str(lock)]) == 0
+    assert "matches the lock" in capsys.readouterr().out
+
+
+def test_partition_verify_detects_changed_corpus(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    manifest = _write_manifest(tmp_path / "manifest.jsonl", 40)
+    lock = tmp_path / "partition.lock.json"
+    assert main(["partition-freeze", str(manifest), "--lock", str(lock)]) == 0
+
+    # A larger corpus reshuffles the pools → verify must fail.
+    _write_manifest(manifest, 60)
+    assert main(["partition-verify", str(manifest), "--lock", str(lock)]) == 1
+    assert "does NOT match" in capsys.readouterr().out

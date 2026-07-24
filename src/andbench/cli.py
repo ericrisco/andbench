@@ -19,6 +19,12 @@ from andbench.partition import (
     partition_corpus,
     write_partition,
 )
+from andbench.partition_lock import (
+    PartitionLock,
+    load_lock,
+    verify_against_lock,
+    write_lock,
+)
 from andbench.validation import validate_jsonl
 
 
@@ -31,6 +37,32 @@ def _cmd_partition(args: argparse.Namespace) -> int:
         f"{len(partition.train_ids)} train / {len(partition.bench_ids)} bench "
         f"({partition.actual_bench_fraction:.2%}) → {paths['metadata'].parent}"
     )
+    return 0
+
+
+def _cmd_partition_freeze(args: argparse.Namespace) -> int:
+    docs = load_manifest(args.manifest)
+    partition = partition_corpus(docs, bench_fraction=args.bench_fraction, seed=args.seed)
+    lock = PartitionLock.from_partition(partition)
+    path = write_lock(lock, args.lock)
+    print(
+        f"Froze partition: {lock.n_train} train / {lock.n_bench} bench, "
+        f"train={lock.pool_train_sha256[:12]}… bench={lock.pool_bench_sha256[:12]}… → {path}"
+    )
+    return 0
+
+
+def _cmd_partition_verify(args: argparse.Namespace) -> int:
+    docs = load_manifest(args.manifest)
+    lock = load_lock(args.lock)
+    partition = partition_corpus(docs, bench_fraction=lock.bench_fraction, seed=lock.seed)
+    problems = verify_against_lock(partition, lock)
+    if problems:
+        print("Partition does NOT match the committed lock:")
+        for problem in problems:
+            print(f"  - {problem}")
+        return 1
+    print(f"Partition matches the lock ({lock.total} docs).")
     return 0
 
 
@@ -89,6 +121,31 @@ def build_parser() -> argparse.ArgumentParser:
         "--seed", type=int, default=DEFAULT_SEED, help=f"Fixed seed (default {DEFAULT_SEED})."
     )
     part.set_defaults(_handler=_cmd_partition)
+
+    freeze = subparsers.add_parser(
+        "partition-freeze", help="Freeze a partition into a committed lockfile."
+    )
+    freeze.add_argument("manifest", help="Path to the JSONL corpus manifest.")
+    freeze.add_argument("--lock", required=True, help="Path to write the lockfile.")
+    freeze.add_argument(
+        "--bench-fraction",
+        type=float,
+        default=DEFAULT_BENCH_FRACTION,
+        dest="bench_fraction",
+        help=f"Held-out fraction (default {DEFAULT_BENCH_FRACTION}).",
+    )
+    freeze.add_argument(
+        "--seed", type=int, default=DEFAULT_SEED, help=f"Fixed seed (default {DEFAULT_SEED})."
+    )
+    freeze.set_defaults(_handler=_cmd_partition_freeze)
+
+    verify = subparsers.add_parser(
+        "partition-verify",
+        help="Recompute the partition from a manifest and check it matches the lock.",
+    )
+    verify.add_argument("manifest", help="Path to the JSONL corpus manifest.")
+    verify.add_argument("--lock", required=True, help="Path to the committed lockfile.")
+    verify.set_defaults(_handler=_cmd_partition_verify)
 
     return parser
 
