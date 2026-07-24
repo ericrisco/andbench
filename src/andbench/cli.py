@@ -15,6 +15,7 @@ from andbench import __version__
 from andbench.canary import CANARY_GUID, CanaryRecord, dataset_has_canary
 from andbench.config import load_config, quota_report, unknown_areas
 from andbench.decontam import MIN_NGRAM, decontaminate
+from andbench.decontam_pass import run_pass_from_files
 from andbench.partition import (
     DEFAULT_BENCH_FRACTION,
     DEFAULT_SEED,
@@ -29,6 +30,19 @@ from andbench.partition_lock import (
     write_lock,
 )
 from andbench.validation import validate_jsonl
+
+
+def _cmd_decontam_pass(args: argparse.Namespace) -> int:
+    try:
+        artifacts = run_pass_from_files(args.items, args.train, args.out, n=args.n)
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+    report = artifacts.report
+    print(report.summary())
+    print(f"Report → {artifacts.report_path}")
+    print(f"Rewrite list → {artifacts.rewrite_path} ({len(report.rewrite_ids)} item(s))")
+    return 0 if report.clean else 1
 
 
 def _cmd_canary(args: argparse.Namespace) -> int:
@@ -193,6 +207,16 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"n-gram length (>= {MIN_NGRAM}, default {MIN_NGRAM}).",
     )
     decon.set_defaults(_handler=_cmd_decontaminate)
+
+    dpass = subparsers.add_parser(
+        "decontam-pass",
+        help="Full decontamination pass over all items; writes report + rewrite list.",
+    )
+    dpass.add_argument("items", help="Path to the items .jsonl file.")
+    dpass.add_argument("--train", required=True, help="Training-text file (one passage per line).")
+    dpass.add_argument("--out", required=True, help="Output directory for the artifacts.")
+    dpass.add_argument("--n", type=int, default=MIN_NGRAM, help=f"n-gram length (>= {MIN_NGRAM}).")
+    dpass.set_defaults(_handler=_cmd_decontam_pass)
 
     canary = subparsers.add_parser(
         "canary", help="Print the canary record, or --check a dataset carries it."
