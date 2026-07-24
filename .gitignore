@@ -1,0 +1,40 @@
+# rsc harness / AI tooling — local only, never committed.
+# Git tracks the code project only; nothing of the harness goes in.
+#
+# No trailing slash: these paths may be real directories OR symlinks into a
+# synced store (Google Drive: "Mi unidad/andbench-harness/"). A trailing slash
+# matches directories only, so a symlink of the same name would leak into git —
+# matching both forms keeps the harness ignored regardless of layout.
+# Root-anchored (leading "/") so a product file of the same basename deeper in
+# the tree (e.g. docs/AGENTS.md) stays trackable.
+/.claude
+/.codex
+/.rsc
+/01-TOOLS
+/02-DOCS
+/AGENTS.md
+/CLAUDE.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Local env / secrets
+.env
+*.local
+
+# Private dataset split — custodied out of the repo (anti-contamination §3)
+/data/private/
