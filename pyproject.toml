@@ -20,6 +20,11 @@ Repository = "https://github.com/ericrisco/andbench"
 andbench = "andbench.cli:main"
 
 [dependency-groups]
+# Only needed to actually upload to the Hub (`andbench publish --upload`); the
+# assemble-and-check path, which is what CI runs, needs nothing extra.
+publish = [
+    "huggingface-hub>=0.26",
+]
 dev = [
     "ruff>=0.8",
     "mypy>=1.13",
@@ -59,6 +64,12 @@ python_version = "3.13"
 strict = true
 warn_unused_configs = true
 files = ["src", "tests"]
+
+# huggingface_hub is an optional extra imported lazily inside the publish command,
+# so the type checker must not require it to be installed.
+[[tool.mypy.overrides]]
+module = "huggingface_hub.*"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

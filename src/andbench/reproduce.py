@@ -18,7 +18,9 @@ gate that does not hold:
    public-vs-private contamination column;
 10. ``dataset-card`` — the Hugging Face card, which also gates on source
     permissions (P23);
-11. ``checksums`` — SHA-256 of every artifact, optionally compared against the
+11. ``publish-build`` — assembles the Hub dataset and Space folders and checks
+    that no private item is in them (it never uploads);
+12. ``checksums`` — SHA-256 of every artifact, optionally compared against the
     bundle's committed baseline.
 
 The last stage is what makes the claim testable: a third party does not merely get *a*
@@ -55,9 +57,15 @@ from andbench.decontam_pass import run_pass_from_files
 from andbench.harness.judge import load_verdicts_by_id, metrics_from_files
 from andbench.harness.lm_eval import generate_configs, write_area_files, write_configs
 from andbench.harness.stats import analyze, load_results, write_report
-from andbench.leaderboard import build_leaderboard, load_andobert_rows, write_leaderboard
+from andbench.leaderboard import (
+    Leaderboard,
+    build_leaderboard,
+    load_andobert_rows,
+    write_leaderboard,
+)
 from andbench.partition import load_manifest, partition_corpus, write_partition
 from andbench.partition_lock import PartitionLock, load_lock, verify_against_lock
+from andbench.publish import build_dataset_repo, build_space_repo, publish_problems
 from andbench.schema import Item
 from andbench.split import split_items, write_split
 from andbench.validation import ValidationReport, validate_jsonl
@@ -369,7 +377,9 @@ def _andobert_stage(bundle: Bundle, items_report: ValidationReport, out_dir: Pat
     return StageResult("andobert-metrics", True, metrics.summary())
 
 
-def _leaderboard_stage(bundle: Bundle, released: Sequence[Item], out_dir: Path) -> StageResult:
+def _leaderboard_stage(
+    bundle: Bundle, released: Sequence[Item], out_dir: Path
+) -> tuple[StageResult, Leaderboard | None]:
     obert_rows = (
         load_andobert_rows(bundle.leaderboard_verdicts)
         if bundle.leaderboard_verdicts.is_file()
@@ -382,11 +392,11 @@ def _leaderboard_stage(bundle: Bundle, released: Sequence[Item], out_dir: Path) 
         out_dir / "leaderboard" / "leaderboard.md",
     )
     if not board.ok:
-        return StageResult("leaderboard", False, "; ".join(board.problems))
+        return StageResult("leaderboard", False, "; ".join(board.problems)), None
     detail = f"{len(board.rows)} model(s)"
     if board.warnings:
         detail += f", {len(board.warnings)} caveat(s)"
-    return StageResult("leaderboard", True, detail)
+    return StageResult("leaderboard", True, detail), board
 
 
 def _card_stage(
@@ -420,6 +430,26 @@ def _card_stage(
         "dataset-card",
         True,
         f"{len(released)} item(s), {len(sources.sources)} declared source(s) → {path.name}",
+    )
+
+
+def _publish_stage(released: Sequence[Item], board: Leaderboard, out_dir: Path) -> StageResult:
+    """Assemble the Hub folders and check them. Never uploads."""
+    card = (out_dir / "dataset-card" / "README.md").read_text(encoding="utf-8")
+    dataset_dir = out_dir / "publish" / "dataset"
+    space_dir = out_dir / "publish" / "space"
+
+    build_dataset_repo(released, card, dataset_dir)
+    build_space_repo(board, space_dir, version=DATASET_VERSION)
+
+    problems = publish_problems(dataset_dir, space_dir)
+    if problems:
+        return StageResult("publish-build", False, "; ".join(problems))
+    n_public = sum(1 for item in released if item.public)
+    return StageResult(
+        "publish-build",
+        True,
+        f"{n_public} public item(s) staged for the Hub, {len(released) - n_public} withheld",
     )
 
 
@@ -502,19 +532,33 @@ def run_reproduction(
     if not split.ok:
         return report
 
-    after_split: tuple[Callable[[], StageResult], ...] = (
+    before_board: tuple[Callable[[], StageResult], ...] = (
         lambda: _canary_stage(out),
         lambda: _export_lm_eval_stage(items_report, out),
         lambda: _gen_lm_eval_stage(out, tracks),
         lambda: _sanity_stage(bundle, items_report, out),
         lambda: _andobert_stage(bundle, items_report, out),
-        lambda: _leaderboard_stage(bundle, released, out),
-        # Reaching this stage means the decontamination gate passed, so the card
-        # may state it: the pipeline stops at the first failure.
+    )
+    for stage in before_board:
+        result = stage()
+        report.stages.append(result)
+        if not result.ok:
+            return report
+
+    # The leaderboard is sequenced explicitly because the Space renders it.
+    leaderboard, board = _leaderboard_stage(bundle, released, out)
+    report.stages.append(leaderboard)
+    if not leaderboard.ok or board is None:
+        return report
+
+    after_board: tuple[Callable[[], StageResult], ...] = (
+        # Reaching here means the decontamination gate passed, so the card may say
+        # so: the pipeline stops at the first failure.
         lambda: _card_stage(released, out, tracks, sources, lock=lock, decontam_clean=True),
+        lambda: _publish_stage(released, board, out),
         lambda: _checksum_stage(bundle, out, verify),
     )
-    for stage in after_split:
+    for stage in after_board:
         result = stage()
         report.stages.append(result)
         if not result.ok:
