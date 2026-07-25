@@ -109,6 +109,10 @@ class OpenRouterClient:
     temperature: float = DEFAULT_TEMPERATURE
     max_tokens: int = DEFAULT_MAX_TOKENS
     seed: int | None = None
+    #: OpenRouter's ``reasoning`` block, e.g. ``{"effort": "none"}``. Left unset by
+    #: default so each model's own default applies; worth setting to none for a
+    #: task like "pick a letter", where thinking is pure cost.
+    reasoning: dict[str, object] | None = None
     max_attempts: int = DEFAULT_MAX_ATTEMPTS
     transport: Transport = _urllib_transport
     #: Injected so tests do not actually wait out the backoff.
@@ -125,6 +129,7 @@ class OpenRouterClient:
         max_tokens: int = DEFAULT_MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
         seed: int | None = None,
+        reasoning: dict[str, object] | None = None,
     ) -> OpenRouterClient:
         """Build a client with the key from the environment."""
         return cls(
@@ -133,6 +138,7 @@ class OpenRouterClient:
             max_tokens=max_tokens,
             temperature=temperature,
             seed=seed,
+            reasoning=reasoning,
         )
 
     # --- the request ------------------------------------------------------
@@ -146,6 +152,8 @@ class OpenRouterClient:
         }
         if self.seed is not None:
             payload["seed"] = self.seed
+        if self.reasoning is not None:
+            payload["reasoning"] = self.reasoning
         return json.dumps(payload).encode("utf-8")
 
     def _headers(self) -> dict[str, str]:
@@ -312,9 +320,15 @@ def judge_model(model: str, *, env: Mapping[str, str] | None = None) -> TextMode
     return TextModel(OpenRouterClient.from_env(model, env=env))
 
 
-def measured_model(model: str, *, env: Mapping[str, str] | None = None) -> MeasuredModel:
+def measured_model(
+    model: str,
+    *,
+    env: Mapping[str, str] | None = None,
+    seed: int | None = None,
+    reasoning: dict[str, object] | None = None,
+) -> MeasuredModel:
     """A smoke-run-shaped model reading its key from the environment."""
-    return MeasuredModel(OpenRouterClient.from_env(model, env=env))
+    return MeasuredModel(OpenRouterClient.from_env(model, env=env, seed=seed, reasoning=reasoning))
 
 
 def extract_json(text: str) -> str:
@@ -353,20 +367,30 @@ class _JsonTextModel(TextModel):
         return extract_json(self.client.generate(prompt).text)
 
 
-def candidate_models() -> Sequence[str]:
-    """The models this project has actually probed, by role.
+#: The chosen And-Obert judge (D-0007). Probed live on four cases including both
+#: honesty ones — correct abstention rewarded, hallucination-instead-of-abstaining
+#: penalised — at ~1.2 s and ~$0.0007 per verdict. Reasoning is enabled by default
+#: on this model, so it needs the generous ``max_tokens`` above.
+JUDGE_MODEL = "openai/gpt-5.6-luna"
 
-    Kept here so the shortlist is code rather than a note in a chat: the judge
-    candidates are all from labs *other* than Google, because Maia is a Gemma-4
-    fine-tune and a judge sharing its lab risks self-preference.
-    """
-    return (
-        # Judge candidates (B3.02/B3.04) — calibrate, then pick.
-        "anthropic/claude-sonnet-5",
-        "openai/gpt-5.4-mini",
-        "deepseek/deepseek-v4-pro",
-        # Draft generation (B2.02) — deliberately not Gemma, to keep item phrasing
-        # independent of the family being evaluated.
-        "deepseek/deepseek-v4-flash",
-        "mistralai/ministral-14b-2512",
-    )
+#: The chosen draft generator (D-0007). Deliberately not Gemma: if the family under
+#: evaluation also phrases the items, its fine-tune scores higher for reasons that
+#: are not knowledge of Andorra.
+DRAFT_MODEL = "deepseek/deepseek-v4-flash"
+
+#: Kept for re-calibration if the judge ever fails the P14 gate. Order is the
+#: fallback order.
+JUDGE_ALTERNATES = (
+    "anthropic/claude-sonnet-5",
+    "deepseek/deepseek-v4-pro",
+)
+
+
+def lab_of(model: str) -> str:
+    """The provider prefix, which stands in for the lab (``openai/gpt-5`` -> openai)."""
+    return model.split("/", 1)[0] if "/" in model else model
+
+
+def candidate_models() -> Sequence[str]:
+    """Every model this project has probed, judge roles first."""
+    return (JUDGE_MODEL, *JUDGE_ALTERNATES, DRAFT_MODEL, "mistralai/ministral-14b-2512")
