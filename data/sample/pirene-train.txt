@@ -1,0 +1,4 @@
+Aquest fitxer imita el corpus d'entrenament de Pirene amb passatges sintetics que no comparteixen cap seqüencia llarga amb els items de mostra, de manera que la passada de descontaminacio ha de sortir neta.
+Els passatges d'entrenament reals arriben del repositori pirene-lm i mai es committegen aqui; aquesta mostra nomes serveix per exercitar el gate de solapament de n-grames amb n igual o superior a tretze paraules.
+Un tercer passatge de farciment amb vocabulari diferent del dels items perque la comprovacio de tretze grames tingui prou material sobre el qual treballar sense provocar cap colisio artificial.
+Quart passatge: la descontaminacio compara cada item contra tot aquest fitxer, per tant qualsevol reutilitzacio gairebe literal d'una frase sencera quedaria marcada immediatament com a colisio i bloquejaria la release.
