@@ -41,7 +41,7 @@ ANDBENCH_VERIFY=0 ./scripts/reproduce.sh
 cp runs/sample/checksums.txt data/sample/expected-checksums.txt
 ```
 
-Changed so far: **B4.01** added `leaderboard/leaderboard.{md,json}` (29 → 31); **B4.02** added `dataset-card/README.md` (31 → 32).
+Changed so far: **B4.01** added `leaderboard/leaderboard.{md,json}` (29 → 31); **B4.02** added `dataset-card/README.md` (31 → 32); **B4.03/B4.04** added the assembled `publish/` folders (32 → 41).
 
 and say in the commit message which artifacts moved and why.
 
