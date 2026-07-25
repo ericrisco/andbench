@@ -294,7 +294,7 @@ def _cmd_smoke(args: argparse.Namespace) -> int:
         load_responses(args.responses),
         pricing=pricing,
         extrapolate_to=args.extrapolate_to,
-        budget_eur=args.budget_eur,
+        budget=args.budget,
         min_parse_rate=args.min_parse_rate,
     )
     print(report.summary())
@@ -810,10 +810,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Item count of the full run, to project its wall-clock and cost.",
     )
     smoke.add_argument(
-        "--budget-eur",
+        "--budget",
         type=float,
-        dest="budget_eur",
-        help="Fail if a model's projected cost exceeds this (or is unknown).",
+        help=(
+            "Fail if a model's projected cost exceeds this, or is unknown. Stated in "
+            "the price table's currency — no exchange rate is applied."
+        ),
     )
     smoke.add_argument(
         "--min-parse-rate",

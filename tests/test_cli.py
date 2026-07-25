@@ -374,7 +374,7 @@ def test_smoke_command_on_the_sample_responses(
             _PRICING,
             "--extrapolate-to",
             "800",
-            "--budget-eur",
+            "--budget",
             "25",
             "--out",
             str(out),
@@ -383,10 +383,10 @@ def test_smoke_command_on_the_sample_responses(
     printed = capsys.readouterr().out
     assert code == 0, printed
     assert "Smoke run OK" in printed
-    assert "gemma-4-12b" in printed
+    assert "google/gemma-4-26b-a4b-it" in printed
     payload = json.loads(out.read_text(encoding="utf-8"))
     assert payload["ok"] is True
-    assert payload["models"]["gemma-4-e4b"]["projected_seconds"] > 0
+    assert payload["models"]["google/gemma-3n-e4b-it"]["projected_seconds"] > 0
 
 
 def test_smoke_command_without_a_price_table_says_so(
