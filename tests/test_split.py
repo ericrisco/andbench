@@ -48,6 +48,23 @@ def test_exhaustive_and_disjoint() -> None:
     assert result.total == len(ids)
 
 
+def test_public_flag_is_stamped_to_match_membership() -> None:
+    """An export must never contradict itself: `public` follows the computed split."""
+    result = split_items(_items())  # every input item declares public=True
+    assert result.private, "the fixture must produce a non-empty private split"
+    assert all(item.public is True for item in result.public)
+    assert all(item.public is False for item in result.private)
+
+
+def test_written_exports_carry_the_stamped_flag(tmp_path: Path) -> None:
+    result = split_items(_items())
+    paths = write_split(result, tmp_path / "pub.jsonl", tmp_path / "priv.jsonl")
+    public_lines = paths["public"].read_text(encoding="utf-8").splitlines()[1:]  # skip canary
+    assert all(json.loads(line)["public"] is True for line in public_lines)
+    private_lines = [ln for ln in paths["private"].read_text().splitlines() if ln.strip()]
+    assert all(json.loads(line)["public"] is False for line in private_lines)
+
+
 def test_fraction_is_about_85_percent() -> None:
     result = split_items(_items(n_per_area=100))  # 200 items
     assert result.actual_public_fraction == pytest.approx(0.85, abs=0.01)
