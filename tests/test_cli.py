@@ -319,3 +319,35 @@ def test_sanity_command(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> N
     assert main(["sanity", str(items), "--results", str(results), "--out", str(out)]) == 0
     assert "Sanity:" in capsys.readouterr().out
     assert out.exists()
+
+
+_SAMPLE_BUNDLE = str(Path(__file__).resolve().parents[1] / "data" / "sample")
+
+
+def test_reproduce_command_on_the_sample_bundle(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code = main(
+        [
+            "reproduce",
+            "--bundle",
+            _SAMPLE_BUNDLE,
+            "--out",
+            str(tmp_path / "run"),
+            "--config",
+            _CONFIG_PATH,
+            "--verify",
+        ]
+    )
+    out = capsys.readouterr().out
+    assert code == 0, out
+    assert "Reproduction OK" in out
+    assert "match the committed baseline" in out
+
+
+def test_reproduce_command_fails_on_a_missing_bundle(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code = main(["reproduce", "--bundle", str(tmp_path / "absent"), "--out", str(tmp_path / "run")])
+    assert code == 1
+    assert "Reproduction FAILED" in capsys.readouterr().out
