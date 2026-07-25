@@ -301,7 +301,7 @@ def test_budget_gate_fails_when_the_projection_exceeds_it() -> None:
     pricing = load_pricing(PRICING_PATH)
     responses = [_response("s-01", "B", model="priced-example")]
     report = analyze_smoke(
-        [_mcq("s-01")], responses, pricing=pricing, extrapolate_to=1_000_000, budget_eur=1.0
+        [_mcq("s-01")], responses, pricing=pricing, extrapolate_to=1_000_000, budget=1.0
     )
     assert not report.ok
     assert any("budget" in p for p in report.problems)
@@ -310,7 +310,7 @@ def test_budget_gate_fails_when_the_projection_exceeds_it() -> None:
 def test_budget_gate_refuses_to_certify_an_unpriced_model() -> None:
     """An unknown cost must never read as a free one."""
     report = analyze_smoke(
-        [_mcq("s-01")], [_response("s-01", "B")], extrapolate_to=100, budget_eur=25.0
+        [_mcq("s-01")], [_response("s-01", "B")], extrapolate_to=100, budget=25.0
     )
     assert not report.ok
     assert any("unknown" in p.lower() for p in report.problems)
@@ -320,7 +320,7 @@ def test_budget_gate_passes_within_budget() -> None:
     pricing = load_pricing(PRICING_PATH)
     responses = [_response("s-01", "B", model="local")]
     report = analyze_smoke(
-        [_mcq("s-01")], responses, pricing=pricing, extrapolate_to=1000, budget_eur=25.0
+        [_mcq("s-01")], responses, pricing=pricing, extrapolate_to=1000, budget=25.0
     )
     assert report.ok, report.summary()
 
@@ -334,7 +334,7 @@ def test_committed_pricing_table_loads_and_prices_local_at_zero() -> None:
     assert local is not None
     assert local.prompt == 0.0
     assert local.completion == 0.0
-    assert pricing.currency == "EUR"
+    assert pricing.currency == "USD"
 
 
 def test_unknown_model_has_no_price() -> None:
