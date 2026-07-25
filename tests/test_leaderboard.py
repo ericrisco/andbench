@@ -209,9 +209,9 @@ def test_a_model_with_only_andobert_results_still_gets_a_row() -> None:
 
 def test_rag_variants_are_separate_rows() -> None:
     items = [_mcq("c-1")]
-    results = [_result("c-1", "pirene", False), _result("c-1", "pirene+rag", True)]
+    results = [_result("c-1", "maia", False), _result("c-1", "maia+rag", True)]
     board = build_leaderboard(items, results)
-    assert [r.model for r in board.rows] == ["pirene+rag", "pirene"]
+    assert [r.model for r in board.rows] == ["maia+rag", "maia"]
 
 
 def test_andobert_rows_roundtrip_through_jsonl(tmp_path: Path) -> None:

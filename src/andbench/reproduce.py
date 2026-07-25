@@ -76,7 +76,7 @@ BUNDLE_INPUTS: dict[str, str] = {
     "items": "items.jsonl",
     "corpus_manifest": "corpus-manifest.jsonl",
     "partition_lock": "partition.lock",
-    "train_texts": "pirene-train.txt",
+    "train_texts": "maia-train.txt",
     "mcq_results": "mcq-results.jsonl",
     "andobert_verdicts": "andobert-verdicts.jsonl",
 }

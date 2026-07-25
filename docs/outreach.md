@@ -1,6 +1,6 @@
 # Outreach kit (B4.05)
 
-Joint announcement with **Pirene**. Two projects announced together is one story with twice the
+Joint announcement with **Maia**. Two projects announced together is one story with twice the
 substance — a benchmark that shows the gap, and a model that closes some of it — for roughly half the
 outreach effort. Announcing them separately halves the interest of each.
 
@@ -39,7 +39,7 @@ people click "these models get Andorran questions wrong in this specific way".
 > sovint no fan servir la varietat andorrana. Fins ara ningú no ho havia mesurat.
 >
 > Presentem **AndBench**, la primera prova pública per a avaluar models de llenguatge sobre
-> **coneixement d'Andorra** i **català d'Andorra**, i **Pirene**, un model ajustat per a millorar-ho.
+> **coneixement d'Andorra** i **català d'Andorra**, i **Maia**, un model ajustat per a millorar-ho.
 >
 > AndBench té **[N] preguntes**, totes verificades per persones, repartides en quatre àmbits:
 > coneixement factual, llengua, cultura quotidiana i generació oberta. Els resultats es poden
@@ -72,10 +72,10 @@ the data does not support.
 for verification: every item is human-verified against a cited source. Per-area figures rest on small
 samples and are reported with their `n`.
 
-**"Pirene tops your own leaderboard — isn't that convenient?"** It is the obvious objection and it has
-a real answer: AndBench items come only from a held-out pool that Pirene's training never touched, the
+**"Maia tops your own leaderboard — isn't that convenient?"** It is the obvious objection and it has
+a real answer: AndBench items come only from a held-out pool that Maia's training never touched, the
 pool hashes are frozen and committed in *both* repositories, and the leaderboard publishes each
-model's public-vs-private gap — including Pirene's. If Pirene were contaminated, that gap would show
+model's public-vs-private gap — including Maia's. If Maia were contaminated, that gap would show
 it. Say this before anyone asks.
 
 **"Who decides what correct Andorran Catalan is?"** Not us. Each item cites a source, and the

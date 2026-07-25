@@ -3,9 +3,9 @@
 Once the ``(source, topic)`` split is computed (B1.01) it must be **frozen**: a
 small lockfile records the seed, the fraction, and a SHA-256 over each pool's
 sorted ``doc_id`` list. That lockfile is committed in **both** ``andbench`` and
-``pirene-lm``. CI in each repo recomputes the partition from the live corpus
+``maia-lm``. CI in each repo recomputes the partition from the live corpus
 manifest and checks it still hashes to the committed lock — so neither side can
-silently move a document between pools, and Pirene's synthetic generation
+silently move a document between pools, and Maia's synthetic generation
 (which consumes ``pool_train`` only) is auditable against the same hash.
 
 The real corpus manifest is external, so the committed lock is generated when
