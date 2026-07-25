@@ -134,7 +134,7 @@ These came out of building the harness and are worth keeping regardless of how v
 
 ### Decisions to revisit explicitly
 
-- **Python 3.13 vs Pirene's 3.11.** Chosen for the local runtime; the decontamination tooling is
+- **Python 3.13 vs Maia's 3.11.** Chosen for the local runtime; the decontamination tooling is
   mirrored across both repos, so matched runtimes would have reduced drift risk. Did that cost
   anything in practice?
 - **Trap fraction at 10 %.** Arbitrary. Did traps discriminate between models, or just add noise?

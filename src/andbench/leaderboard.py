@@ -13,8 +13,8 @@ flagged.
 
 Everything here derives from recorded results — no model is run — so a leaderboard
 row can be rebuilt and audited by anyone holding the same result files. A model's
-identity *is* its label: RAG variants are separate entries (``pirene-7b`` vs
-``pirene-7b+rag``) rather than a flag, so a table can never disagree with itself
+identity *is* its label: RAG variants are separate entries (``maia-7b`` vs
+``maia-7b+rag``) rather than a flag, so a table can never disagree with itself
 about which variant a number came from.
 """
 

@@ -184,10 +184,10 @@ def test_a_default_source_can_be_supplied_for_a_whole_migration() -> None:
     candidates, errors = _convert(
         [{"question": "q", "answer": "a"}],
         field_map=FieldMap(),
-        default_source_doc_id="pirene/test-split.jsonl",
+        default_source_doc_id="maia/test-split.jsonl",
     )
     assert errors == []
-    assert candidates[0].source_doc_id == "pirene/test-split.jsonl"
+    assert candidates[0].source_doc_id == "maia/test-split.jsonl"
 
 
 def test_difficulty_is_mapped_when_present() -> None:

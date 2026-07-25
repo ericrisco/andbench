@@ -24,7 +24,7 @@ models:
     note: Self-hosted or local weights; per-token cost is zero by definition.
 
   # Gemma 4 run locally is the B3.03 reference model (PLAN B3.03) and the base of
-  # Pirene, so it is priced as local. Running it through a hosted API instead
+  # Maia, so it is priced as local. Running it through a hosted API instead
   # means adding that provider's entry under its own name.
   gemma-4-12b:
     prompt: 0.0
