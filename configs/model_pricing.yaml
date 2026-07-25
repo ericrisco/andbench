@@ -1,0 +1,44 @@
+# Per-token prices used by the smoke run to project a full run's cost (B3.03).
+#
+# ⚠️ This table is a CONTRACT, not a price list. Only entries whose numbers were
+# copied from a provider's published pricing may be trusted; AndBench does not
+# guess prices. A model that is absent here has an **unknown** cost, and the smoke
+# run reports it as unknown rather than as zero — an unknown cost must never read
+# as a free one, or the €10–25 API budget (PRD §8) would be blown silently.
+#
+# Add a model when its provider is chosen (open gap: see 02-DOCS/wiki/gaps.md),
+# pasting the numbers from the provider's price page and dating the note.
+
+version: 1
+
+# All prices are per 1000 tokens in this currency.
+currency: EUR
+
+models:
+  # Weights on disk / a GPU you already rent: no per-token charge. Wall-clock,
+  # not price, is the constraint for these — which is why the smoke run projects
+  # both.
+  local:
+    prompt: 0.0
+    completion: 0.0
+    note: Self-hosted or local weights; per-token cost is zero by definition.
+
+  # Gemma 4 run locally is the B3.03 reference model (PLAN B3.03) and the base of
+  # Pirene, so it is priced as local. Running it through a hosted API instead
+  # means adding that provider's entry under its own name.
+  gemma-4-12b:
+    prompt: 0.0
+    completion: 0.0
+    note: Local/self-hosted per PLAN B3.03 (no GPU budget line; wall-clock is the cost).
+
+  gemma-4-e4b:
+    prompt: 0.0
+    completion: 0.0
+    note: The small comparison model of PLAN B3.03; local, same reasoning as above.
+
+  # A deliberately non-zero entry so the budget gate is exercised end-to-end by
+  # the test suite. NOT a real product: never point a real run at this name.
+  priced-example:
+    prompt: 1.0
+    completion: 2.0
+    note: Fixture only — synthetic prices used to test the budget gate.
