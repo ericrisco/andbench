@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from andbench.harness.stats import ItemResult
+from andbench.harness.stats import ItemResult, ScoringMethod
 from andbench.leaderboard import (
     SUSPICIOUS_GAP,
     AndObertRow,
@@ -322,3 +322,90 @@ def test_artifacts_are_written(tmp_path: Path) -> None:
 def test_summary_lists_problems_when_the_table_is_unpublishable() -> None:
     board = build_leaderboard([_mcq("c-1")], [])
     assert "NOT publishable" in board.summary()
+
+
+# --- scoring methods must not be mixed (B4.01 gap) ------------------------
+
+
+def _res(item_id: str, model: str, correct: bool, method: object = None) -> ItemResult:
+    payload: dict[str, object] = {
+        "item_id": item_id,
+        "model": model,
+        "seed": 1,
+        "correct": correct,
+    }
+    if method is not None:
+        payload["scoring_method"] = method
+    return ItemResult.model_validate(payload)
+
+
+def test_a_single_scoring_method_is_recorded_on_the_row() -> None:
+    board = build_leaderboard([_mcq("c-1")], [_res("c-1", "m1", True, "generative")])
+    assert board.ok
+    assert board.rows[0].scoring_method is ScoringMethod.GENERATIVE
+    assert board.to_dict()["rows"][0]["scoring_method"] == "generative"  # type: ignore[index]
+
+
+def test_mixing_loglikelihood_and_generative_is_refused() -> None:
+    """They measure different things; one column holding both is not a ranking."""
+    items = [_mcq("c-1")]
+    results = [
+        _res("c-1", "gemma", True, "loglikelihood"),
+        _res("c-1", "gpt", True, "generative"),
+    ]
+    board = build_leaderboard(items, results)
+    assert not board.ok
+    assert any("not comparable" in p for p in board.problems)
+    assert "not fit to publish" in board.to_markdown()
+
+
+def test_mixing_a_recorded_method_with_an_unrecorded_one_is_refused() -> None:
+    """Unknown is not 'probably the same' — that is how a mixture slips through."""
+    items = [_mcq("c-1")]
+    results = [_res("c-1", "a", True, "generative"), _res("c-1", "b", True)]
+    board = build_leaderboard(items, results)
+    assert not board.ok
+    assert any("unrecorded" in p for p in board.problems)
+
+
+def test_all_unrecorded_is_allowed_so_legacy_files_still_publish() -> None:
+    board = build_leaderboard([_mcq("c-1")], [_res("c-1", "m1", True)])
+    assert board.ok
+    assert board.rows[0].scoring_method is None
+
+
+# --- the judge must not share a lab with a graded model -------------------
+
+
+def test_a_judge_sharing_a_lab_with_an_evaluated_model_is_flagged() -> None:
+    items = [_mcq("c-1")]
+    results = [_res("c-1", "openai/gpt-5.4", True), _res("c-1", "google/gemma-4-31b-it", True)]
+    board = build_leaderboard(items, results, judge_model="openai/gpt-5.6-luna")
+    assert any("self-preference" in w and "openai/gpt-5.4" in w for w in board.warnings)
+    assert not any("gemma" in w for w in board.warnings if "self-preference" in w)
+
+
+def test_no_conflict_when_the_judge_lab_is_absent() -> None:
+    items = [_mcq("c-1")]
+    results = [_res("c-1", "google/gemma-4-31b-it", True)]
+    board = build_leaderboard(items, results, judge_model="openai/gpt-5.6-luna")
+    assert not any("self-preference" in w for w in board.warnings)
+
+
+def test_the_conflict_reaches_the_published_caveats() -> None:
+    items = [_mcq("c-1")]
+    results = [_res("c-1", "openai/gpt-5.4", True)]
+    board = build_leaderboard(items, results, judge_model="openai/gpt-5.6-luna")
+    assert "self-preference" in board.to_markdown()
+
+
+def test_conflicts_are_only_checked_when_a_judge_is_named() -> None:
+    board = build_leaderboard([_mcq("c-1")], [_res("c-1", "openai/gpt-5.4", True)])
+    assert not any("self-preference" in w for w in board.warnings)
+
+
+def test_lab_of_treats_a_bare_name_as_its_own_lab() -> None:
+    from andbench.leaderboard import lab_of, same_lab_conflicts
+
+    assert lab_of("local-gemma") == "local-gemma"
+    assert same_lab_conflicts("openai/x", ["local-gemma"]) == []
