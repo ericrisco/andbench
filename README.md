@@ -329,7 +329,8 @@ caveat naming any conflict rather than leaving a reader to notice.
 
 ### Calibrating the judge before you trust it
 
-A rubric version ships only at **≥ 85 % agreement with human judgement** (P14). That is a two-command
+A rubric version ships only when it clears **both** halves of P14: **≥ 85 % raw agreement** with
+human judgement **and Cohen's κ ≥ 0.41**. That is a two-command
 loop, and the sample is drawn deterministically so *which* responses were labelled is auditable
 rather than a matter of trust:
 
@@ -354,12 +355,28 @@ agreement figure stops meaning anything. That blindness is structural: the sheet
 the verdicts at all. A partially-filled sheet is refused for the same reason, since it would measure
 agreement on a self-selected subset.
 
-The record reports Cohen's **κ** next to raw agreement, because agreement alone is a trap: if 90 % of
-answers are correct, a judge that always says "correct" scores 90 % agreement while carrying **zero**
-information. That case yields κ = 0 and a warning saying the rubric should not ship despite clearing
-the P14 bar — the gate does not quietly raise the constitutional threshold, but it does refuse to let
-a hollow number pass unremarked. A lenient judge (accepting answers the human rejected) is flagged
-too, since that is what inflates factual accuracy.
+**Why two halves.** Raw agreement is confounded by class balance: if 90 % of answers are factually
+correct, a judge that always says "correct" scores 90 % agreement while carrying **zero** information
+— and that is the *likely* failure of an LLM judge, which tends to be agreeable. The κ floor closes
+that hole:
+
+| κ | Effect |
+|---|---|
+| < 0.41 | **Blocks.** Near chance; the agreement figure is hollow. |
+| 0.41–0.60 | Ships, with the record stating the evidence is thin. |
+| ≥ 0.61 | Ships. |
+| undefined | **Blocks** — and blames the *sample*, not the judge. |
+
+The floor is 0.41 (Landis–Koch "moderate") rather than the tidier 0.61 because at n = 50 κ carries
+roughly ±0.2 of sampling noise, so a stricter floor would fail rubrics whose true κ is fine. It
+catches the failure that actually happens — κ ≈ 0 — with margin to spare.
+
+An **undefined** κ means both raters gave one label to everything, so the sample cannot show the
+judge would catch a wrong answer. The fix is a better sample (include a weaker model's answers), and
+the tool says exactly that instead of leaving you to guess. A lenient judge — accepting answers the
+human rejected — is flagged too, since that is what inflates factual accuracy.
+
+This was added by **constitution amendment v1.1.0** after building the gate made the hole visible.
 
 Commit the record next to the rubric version it certifies, and bump the rubric version whenever you
 revise it after a failure.

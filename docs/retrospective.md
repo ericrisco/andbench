@@ -56,13 +56,16 @@ chosen embedder** — so paraphrase collisions are currently undetected. This is
 protocol the project describes as two-layered. Needs one decision (which embedding model) and a
 threshold calibrated on known-good and known-bad pairs, not guessed.
 
-### B-5. κ as a constitutional floor for the judge
+### B-5. κ as a constitutional floor for the judge — ✅ done (v1.1.0)
 
-P14 gates the rubric on ≥ 85 % raw agreement. Raw agreement is a trap: a judge that always says
-"correct" scores 90 % against a 90 %-correct answer set while carrying **zero** information, and it
-passes. The calibration record already computes Cohen's κ and warns, but it does not block. Amending
-P14 to include a κ floor (≈ 0.6) would make the gate mean what it is meant to mean. Deliberately left
-as a decision rather than smuggled in with an implementation.
+Closed by **constitution amendment v1.1.0** (decision D-0009). P14 now requires ≥ 85 % raw agreement
+**and** Cohen's κ ≥ 0.41, with an advisory band to 0.61 and an undefined κ blocking outright.
+
+Two notes for whoever revisits this. The floor is **0.41, not the 0.6 sketched here**: at n = 50 κ
+carries roughly ±0.2 of sampling noise, so a 0.6 hard floor would have failed rubrics whose true κ is
+fine — it would have traded a real failure mode for a noise-driven blocker. And an undefined κ blames
+the **sample**, not the judge: all-one-label proves nothing about catching a wrong answer, so the
+remedy is to include a weaker model's answers.
 
 ### B-6. Per-release statistical report as a first-class artefact
 
