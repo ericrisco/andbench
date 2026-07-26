@@ -358,17 +358,25 @@ def test_card_omits_the_leaderboard_section_when_absent() -> None:
 
 
 def test_errata_render_as_a_table() -> None:
+    from andbench.card import ErrataRegister
+
     card = _card(
-        errata=[
+        errata=ErrataRegister.model_validate(
             {
-                "version": "v1.1",
-                "item_id": "and-coneix-0007",
-                "change": "distractor replaced",
-                "reason": "two options were defensible",
+                "version": 1,
+                "errata": [
+                    {
+                        "version": "v1.1",
+                        "item_id": "i-1",
+                        "kind": "corrected",
+                        "change": "distractor replaced",
+                        "reason": "two options were defensible",
+                    }
+                ],
             }
-        ]
+        )
     )
-    assert "and-coneix-0007" in card
+    assert "i-1" in card
     assert "two options were defensible" in card
 
 
