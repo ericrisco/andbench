@@ -9,6 +9,8 @@ import pytest
 
 from andbench.harness.calibration import (
     DEFAULT_MIN_AGREEMENT,
+    MIN_KAPPA,
+    SUBSTANTIAL_KAPPA,
     CalibrationCase,
     build_sheet,
     calibrate,
@@ -254,22 +256,85 @@ def test_a_lenient_judge_is_flagged() -> None:
     assert any("lenient" in w for w in record.warnings)
 
 
-def test_a_judge_that_always_says_yes_scores_zero_kappa_and_is_warned_about() -> None:
-    """The trap P14 cannot see: 90% agreement carrying no information at all."""
+def test_a_judge_that_always_says_yes_is_blocked_despite_90_percent_agreement() -> None:
+    """The trap the original P14 could not see, now closed (amended v1.1.0)."""
     pairs = [(True, True)] * 9 + [(True, False)]
     cases, verdicts = _sheet_and_verdicts(pairs)
     record = calibrate(cases, verdicts, rubric_version="v1.0")
-    assert record.ok  # clears the P14 bar on raw agreement
-    assert record.kappa == pytest.approx(0.0)  # ...while knowing nothing
-    assert any("near chance" in w and "should not ship" in w for w in record.warnings)
+
+    assert record.agreement == pytest.approx(0.9)
+    assert record.agreement_ok  # the raw-agreement half still passes...
+    assert record.kappa == pytest.approx(0.0)  # ...while carrying no information
+    assert not record.kappa_ok
+    assert not record.ok
+    assert "FAIL on kappa" in record.summary()
+    assert "near chance" in record.summary()
 
 
-def test_kappa_is_undefined_when_both_raters_are_constant() -> None:
+def test_an_undefined_kappa_blocks_and_blames_the_sample_not_the_judge() -> None:
+    """All-one-label proves nothing about catching a wrong answer."""
     pairs = [(True, True)] * 10
     cases, verdicts = _sheet_and_verdicts(pairs)
     record = calibrate(cases, verdicts, rubric_version="v1.0")
+
     assert record.kappa is None
-    assert any("not evidence of judge skill" in w for w in record.warnings)
+    assert not record.ok
+    summary = record.summary()
+    assert "undefined" in summary
+    assert "Enlarge the sample" in summary
+    assert "the judge is not the problem here" in summary
+
+
+def test_the_two_kappa_tiers() -> None:
+    from andbench.harness.calibration import MIN_KAPPA, SUBSTANTIAL_KAPPA
+
+    assert MIN_KAPPA == 0.41  # Landis-Koch "moderate" floor
+    assert SUBSTANTIAL_KAPPA == 0.61
+    assert MIN_KAPPA < SUBSTANTIAL_KAPPA
+
+
+def test_a_kappa_in_the_advisory_band_ships_with_a_caveat() -> None:
+    """Clears the floor, below 'substantial': thin evidence, not a blocker.
+
+    Proportions chosen so agreement is 90 % (over the 85 % bar) while the skewed
+    marginals hold kappa at 0.44 — the exact situation the two tiers exist for.
+    """
+    pairs = [(True, True)] * 17 + [(True, False), (False, True), (False, False)]
+    cases, verdicts = _sheet_and_verdicts(pairs)
+    record = calibrate(cases, verdicts, rubric_version="v1.0")
+
+    assert record.agreement == pytest.approx(0.90)
+    assert record.kappa is not None
+    assert MIN_KAPPA <= record.kappa < SUBSTANTIAL_KAPPA
+    assert record.ok, record.summary()
+    assert any("evidence is thin" in w for w in record.warnings)
+
+
+def test_a_low_agreement_still_fails_on_agreement_first() -> None:
+    """Both halves are reported separately so the fix is unambiguous."""
+    pairs = [(True, True)] * 5 + [(True, False)] * 5
+    cases, verdicts = _sheet_and_verdicts(pairs)
+    record = calibrate(cases, verdicts, rubric_version="v1.0")
+    assert not record.agreement_ok
+    assert "FAIL on agreement" in record.summary()
+
+
+def test_the_floor_is_configurable_for_a_deliberate_exception() -> None:
+    pairs = [(True, True)] * 9 + [(True, False)]
+    cases, verdicts = _sheet_and_verdicts(pairs)
+    record = calibrate(cases, verdicts, rubric_version="v1.0", min_kappa=0.0)
+    assert record.kappa_ok
+    assert record.ok
+
+
+def test_the_record_publishes_both_halves() -> None:
+    pairs = [(True, True)] * 9 + [(True, False)]
+    cases, verdicts = _sheet_and_verdicts(pairs)
+    payload = calibrate(cases, verdicts, rubric_version="v1.0").to_dict()
+    assert payload["agreement_ok"] is True
+    assert payload["kappa_ok"] is False
+    assert payload["ok"] is False
+    assert payload["min_kappa"] == 0.41
 
 
 def test_a_genuinely_skilled_judge_earns_high_kappa_and_no_warnings() -> None:
@@ -277,7 +342,8 @@ def test_a_genuinely_skilled_judge_earns_high_kappa_and_no_warnings() -> None:
     cases, verdicts = _sheet_and_verdicts(pairs)
     record = calibrate(cases, verdicts, rubric_version="v1.0")
     assert record.ok
-    assert record.kappa is not None and record.kappa > 0.6
+    assert record.agreement_ok and record.kappa_ok
+    assert record.kappa is not None and record.kappa > SUBSTANTIAL_KAPPA
     assert record.warnings == []
 
 
