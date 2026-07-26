@@ -1,0 +1,27 @@
+# Who is credited in the dataset card, and who asked not to be.
+#
+# Verifiers do the work the benchmark's central claim rests on, so they are owed
+# the credit — but a name is personal data, and publishing one without recorded
+# consent is not a courtesy, it is a disclosure. `docs/verifier-onboarding.md` says
+# to ask first; this file is where the answer is recorded.
+#
+# The card names only contributors with `credit: true`. Anyone appearing as an
+# author or verifier in the items but absent from this file is **not named** — the
+# safe default — and the card reports how many were withheld, so a missing consent
+# is visible rather than silent.
+#
+# `id` must match the string used in the items' `author` / `verifier` fields.
+
+version: 1
+
+contributors:
+  - id: fixture-author
+    display_name: Fixture author
+    role: author
+    credit: false
+    note: Synthetic sample bundle only; not a person.
+  - id: fixture-verifier
+    display_name: Fixture verifier
+    role: verifier
+    credit: false
+    note: Synthetic sample bundle only; not a person.
