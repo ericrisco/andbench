@@ -20,6 +20,12 @@ Repository = "https://github.com/ericrisco/andbench"
 andbench = "andbench.cli:main"
 
 [dependency-groups]
+# Only needed for the embedding half of the decontamination check (P10). The
+# n-gram half needs nothing and always runs, so the lean default install still
+# gates a release on near-verbatim reuse.
+decontam = [
+    "sentence-transformers>=3.0",
+]
 # Only needed to actually upload to the Hub (`andbench publish --upload`); the
 # assemble-and-check path, which is what CI runs, needs nothing extra.
 publish = [
@@ -69,6 +75,12 @@ files = ["src", "tests"]
 # so the type checker must not require it to be installed.
 [[tool.mypy.overrides]]
 module = "huggingface_hub.*"
+ignore_missing_imports = true
+
+# sentence_transformers is an optional extra imported lazily by the embedder, so
+# the type checker must not require it to be installed.
+[[tool.mypy.overrides]]
+module = "sentence_transformers.*"
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

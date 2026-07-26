@@ -78,15 +78,20 @@ def run_pass_from_files(
     out_dir: str | Path,
     *,
     n: int = MIN_NGRAM,
+    embedder: Embedder | None = None,
+    threshold: float = DEFAULT_SIMILARITY_THRESHOLD,
 ) -> PassArtifacts:
     """Load items + training texts, run the pass, and write the artifacts.
 
     Raises ``ValueError`` if the item file itself does not validate — a
     contamination pass over invalid items would be meaningless.
+
+    Without an ``embedder`` only the n-gram half runs, which the report records:
+    a pass that skipped the paraphrase check must not read like one that passed it.
     """
     validation = validate_jsonl(items_path)
     if not validation.ok:
         raise ValueError(f"item file failed schema validation:\n{validation.summary()}")
     train_texts = load_training_texts(train_path)
-    report = run_pass(validation.items, train_texts, n=n)
+    report = run_pass(validation.items, train_texts, n=n, embedder=embedder, threshold=threshold)
     return write_artifacts(report, out_dir)

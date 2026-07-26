@@ -11,10 +11,13 @@ training corpus and emits a **binary verdict per item**:
 Any collision blocks the release until the item is rewritten; the same check runs
 in CI of both ``andbench`` and ``maia-lm``.
 
-The embedding model is deliberately **not** chosen here (open gap): the check
-takes an injectable :class:`Embedder`. The n-gram check needs no model and always
-runs. Feeding the real training corpus and a real embedder are documented
-per-release steps; both checks are fully exercised against fixtures.
+The check takes an injectable :class:`Embedder`;
+:mod:`andbench.providers.embeddings` provides the default local implementation, in
+an optional dependency group so the lean install still gates on near-verbatim
+reuse. The n-gram check needs no model and always runs. Feeding the real training
+corpus is a documented per-release step; both checks are exercised against
+fixtures, and the similarity threshold is calibrated against labelled pairs rather
+than guessed.
 """
 
 from __future__ import annotations
@@ -30,8 +33,19 @@ from andbench.schema import Item
 #: Minimum n-gram length. Constitution P10 requires n >= 13.
 MIN_NGRAM = 13
 
-#: Default cosine-similarity threshold for an embedding collision.
-DEFAULT_SIMILARITY_THRESHOLD = 0.9
+#: Cosine-similarity threshold for an embedding collision, **calibrated** rather
+#: than asserted: see :mod:`andbench.decontam_threshold` and
+#: ``configs/decontam_pairs.yaml``. With the default embedder, labelled paraphrases
+#: score 0.843-0.986 and same-topic-different-content hard negatives top out at
+#: 0.570, so this sits in the middle of that gap.
+#:
+#: The previous value of 0.9 was a guess, and the calibration showed it missed 1 in
+#: 6 real paraphrases — a paraphrase check that appears to run while catching
+#: nothing is worse than no check, because it buys false confidence.
+#:
+#: Re-run the calibration when the embedder changes: the number is a property of the
+#: model, not of the protocol.
+DEFAULT_SIMILARITY_THRESHOLD = 0.71
 
 _TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 
