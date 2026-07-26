@@ -340,6 +340,12 @@ def extract_json(text: str) -> str:
     The bracket that appears **first** wins. Checking ``{`` before ``[``
     unconditionally would strip the brackets off an array of objects — and the
     draft pipeline expects exactly that shape, so it would have parsed as nothing.
+
+    The closer is found by **matching depth**, not by taking the last one in the
+    string. A model that adds a friendly note after its JSON ("...and note that
+    {this} matters") would otherwise have its payload run to a brace belonging to
+    the prose, and the whole paid call would be discarded as unparseable. Braces
+    inside string literals are skipped, escapes included.
     """
     candidates = [
         (text.find(opener), opener, closer)
@@ -349,11 +355,40 @@ def extract_json(text: str) -> str:
     if not candidates:
         return text.strip()
 
-    _start, opener, closer = min(candidates)
-    start, end = text.find(opener), text.rfind(closer)
-    if end > start:
+    start, opener, closer = min(candidates)
+    end = _matching_close(text, start, opener, closer)
+    if end is not None:
         return text[start : end + 1]
-    return text.strip()
+    # Unbalanced: fall back to the last candidate closer, which at least gives the
+    # strict parser something to reject with a useful message.
+    last = text.rfind(closer)
+    return text[start : last + 1] if last > start else text.strip()
+
+
+def _matching_close(text: str, start: int, opener: str, closer: str) -> int | None:
+    """Index of the bracket closing the one at ``start``, ignoring string literals."""
+    depth = 0
+    in_string = False
+    escaped = False
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == opener:
+            depth += 1
+        elif char == closer:
+            depth -= 1
+            if depth == 0:
+                return index
+    return None
 
 
 def json_text_model(model: str, *, env: Mapping[str, str] | None = None) -> TextModel:

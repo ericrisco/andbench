@@ -367,3 +367,43 @@ def test_judge_and_measured_constructors_read_the_environment() -> None:
 
 def test_an_unmatched_bracket_falls_back_to_the_stripped_text() -> None:
     assert extract_json("  { unclosed  ") == "{ unclosed"
+
+
+# --- extract_json: the closer must match the opener, not be the last in the text ---
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ('{"a": 1}  hope that helps!', '{"a": 1}'),
+        ('Here: {"a": 1} — note that {this} matters', '{"a": 1}'),
+        ('{"nested": {"deep": 1}} trailing', '{"nested": {"deep": 1}}'),
+        ('[{"a": 1}] and later [brackets]', '[{"a": 1}]'),
+        (
+            '{"s": "a brace } inside a string", "a": 1}',
+            '{"s": "a brace } inside a string", "a": 1}',
+        ),
+        (
+            '{"s": "an escaped \\" quote and }", "a": 1} tail',
+            '{"s": "an escaped \\" quote and }", "a": 1}',
+        ),
+    ],
+)
+def test_extract_json_matches_by_depth_not_by_the_last_bracket(raw: str, expected: str) -> None:
+    """A friendly note containing braces would otherwise discard a paid call."""
+    assert extract_json(raw) == expected
+
+
+def test_every_depth_matched_payload_actually_parses() -> None:
+    for raw in (
+        '{"a": 1} hope that helps!',
+        'Here: {"a": 1} — note that {this} matters',
+        '{"s": "a brace } inside", "a": 1}',
+        '[{"a": 1}] and later [brackets]',
+    ):
+        assert json.loads(extract_json(raw))
+
+
+def test_an_unbalanced_payload_still_returns_something_for_the_parser_to_reject() -> None:
+    """Better a clear parse error than a silent truncation."""
+    assert extract_json('{"a": 1') == '{"a": 1'
