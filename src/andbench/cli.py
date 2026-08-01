@@ -26,6 +26,17 @@ from andbench.card import (
     write_card,
 )
 from andbench.config import load_config, quota_report, unknown_areas
+from andbench.corpus import (
+    POOL_BENCH,
+    POOL_TRAIN,
+    chunk_corpus,
+    licence_warnings,
+    load_documents,
+    load_pools,
+    summarise,
+    write_manifest,
+    write_passages,
+)
 from andbench.decontam import DEFAULT_SIMILARITY_THRESHOLD, MIN_NGRAM, decontaminate
 from andbench.decontam_pass import run_pass_from_files
 from andbench.harness.calibration import (
@@ -106,6 +117,14 @@ from andbench.reproduce import (
     DEFAULT_BUNDLE_DIR,
     Bundle,
     run_reproduction,
+)
+from andbench.retrieval import (
+    DEFAULT_TOP_K,
+    build_index,
+    index_path,
+    load_index,
+    retrieve_for_authoring,
+    write_index,
 )
 from andbench.schema import Track
 from andbench.split import (
@@ -507,6 +526,70 @@ def _cmd_export_lm_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_corpus_index(args: argparse.Namespace) -> int:
+    from andbench.providers.embeddings import EmbedderUnavailableError, build_embedder
+
+    documents = load_documents(args.corpus)
+    for warning in licence_warnings(documents):
+        print(f"  warning: {warning}")
+
+    if args.manifest:
+        print(f"Manifest → {write_manifest(documents, args.manifest)}")
+
+    try:
+        pools = load_pools(args.pools)
+    except ValueError as exc:
+        print(str(exc))
+        return 1
+
+    passages, problems = chunk_corpus(
+        documents, pools, chunk_chars=args.chunk_chars, overlap_chars=args.overlap
+    )
+    for problem in problems:
+        print(f"  skipped: {problem}")
+    if not passages:
+        print("No passages to index.")
+        return 1
+    print(summarise(documents, passages))
+
+    if args.passages:
+        print(f"Passages → {write_passages(passages, args.passages)}")
+
+    try:
+        embedder = build_embedder(args.model) if args.model else build_embedder()
+        embedder.load()
+    except EmbedderUnavailableError as exc:
+        print(str(exc))
+        return 1
+
+    # One index per pool, in separate files. A bench index physically cannot hold a
+    # training passage, which is what makes P9 structural instead of a reminder.
+    for pool in (POOL_BENCH, POOL_TRAIN):
+        index = build_index(passages, embedder, pool=pool, model=embedder.model_name)
+        if not len(index):
+            continue
+        print(f"{index.summary()}\n  → {write_index(index, index_path(args.out, pool))}")
+    return 0 if not problems else 1
+
+
+def _cmd_corpus_search(args: argparse.Namespace) -> int:
+    from andbench.providers.embeddings import EmbedderUnavailableError, build_embedder
+    from andbench.retrieval import PoolViolationError
+
+    try:
+        index = load_index(args.index)
+        embedder = build_embedder(index.model)
+        hits = retrieve_for_authoring(index, args.query, embedder, top_k=args.top_k)
+    except (EmbedderUnavailableError, PoolViolationError, ValueError) as exc:
+        print(str(exc))
+        return 1
+
+    print(f"{len(hits)} passage(s) for {args.query!r} in the {index.pool} index:")
+    for hit in hits:
+        print(hit.line())
+    return 0
+
+
 def _cmd_decontam_threshold(args: argparse.Namespace) -> int:
     from andbench.providers.embeddings import EmbedderUnavailableError, build_embedder
 
@@ -726,6 +809,33 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"n-gram length (>= {MIN_NGRAM}, default {MIN_NGRAM}).",
     )
     decon.set_defaults(_handler=_cmd_decontaminate)
+
+    cidx = subparsers.add_parser(
+        "corpus-index",
+        help="Chunk a source corpus and build one local retrieval index per pool.",
+    )
+    cidx.add_argument("corpus", help="Corpus documents .jsonl (with provenance).")
+    cidx.add_argument("--pools", required=True, help="Directory holding pool_{train,bench}.txt.")
+    cidx.add_argument("--out", required=True, help="Directory to write the indexes into.")
+    cidx.add_argument("--manifest", help="Optional path to write the partition manifest.")
+    cidx.add_argument("--passages", help="Optional path to write the chunked passages.")
+    cidx.add_argument("--model", help="Embedding model id.")
+    cidx.add_argument(
+        "--chunk-chars", type=int, default=1200, dest="chunk_chars", help="Passage size."
+    )
+    cidx.add_argument("--overlap", type=int, default=150, help="Overlap between passages.")
+    cidx.set_defaults(_handler=_cmd_corpus_index)
+
+    csearch = subparsers.add_parser(
+        "corpus-search",
+        help="Retrieve passages an item may be written from (bench pool only, P9).",
+    )
+    csearch.add_argument("query", help="What to look for.")
+    csearch.add_argument("--index", required=True, help="Path to a pool index.")
+    csearch.add_argument(
+        "--top-k", type=int, default=DEFAULT_TOP_K, dest="top_k", help="How many passages."
+    )
+    csearch.set_defaults(_handler=_cmd_corpus_search)
 
     dthr = subparsers.add_parser(
         "decontam-threshold",
