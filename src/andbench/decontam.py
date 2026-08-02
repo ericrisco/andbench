@@ -9,7 +9,7 @@ training corpus and emits a **binary verdict per item**:
   training passage, it is a paraphrase collision.
 
 Any collision blocks the release until the item is rewritten; the same check runs
-in CI of both ``andbench`` and ``maia-lm``.
+in CI of both ``andbench`` and ``maia``.
 
 The check takes an injectable :class:`Embedder`;
 :mod:`andbench.providers.embeddings` provides the default local implementation, in

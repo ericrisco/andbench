@@ -7,7 +7,7 @@ seam with no implementation, so a rewritten-but-equivalent item passed a protoco
 the project describes as two-layered.
 
 **Local, not an API.** The check gates a release and runs in CI of both ``andbench``
-and ``maia-lm`` (P10). A hosted embedder would need a credential, which means it
+and ``maia`` (P10). A hosted embedder would need a credential, which means it
 cannot run on a fork's pull request — and a gate that silently skips is not a gate.
 So the model is downloaded and run on CPU, in an optional ``decontam`` dependency
 group: the lean default install still gates on near-verbatim reuse, and the heavier
