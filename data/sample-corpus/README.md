@@ -19,6 +19,11 @@ The first command needs a partition to already exist (`andbench partition manife
 pools/`), because a document whose pool is unknown is **skipped, not guessed** — guessing is how
 training text ends up under a benchmark item.
 
+The index this produces is also what `draft-corpus` and `screen-drafts` read, so the whole assisted
+authoring path is exercisable against it — see
+[docs/assisted-authoring.md](../../docs/assisted-authoring.md). The drafts it yields are about
+invented parishes, which is the point: they demonstrate the pipeline without contaminating anything.
+
 ## The provenance fields
 
 Each document carries `source`, `licence`, `url`, `retrieved` and `permission`. `source` must match

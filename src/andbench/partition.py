@@ -12,7 +12,7 @@ written **only** from ``pool_bench``; Maia's synthetic generation uses **only**
   seeded hash of each ``doc_id``, then ranked within the stratum);
 * **exhaustive and disjoint** — every document lands in exactly one pool.
 
-The corpus itself is external to this repo (it lives with ``maia-lm``); this
+The corpus itself is external to this repo (it lives with ``maia``); this
 module operates on a *manifest* — one JSON record per document with at least
 ``doc_id``, ``source`` and ``topic``. Feeding the real manifest is a documented
 per-release step; the logic here is fully exercised against fixtures.
